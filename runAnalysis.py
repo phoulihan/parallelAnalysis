@@ -33,14 +33,16 @@ import collections, re
 import nltk
 from sklearn import cross_validation
 from sklearn.svm import SVC
+from sklearn import neighbors, datasets
 
-thePath = 'C:/Users/xilin/gitHubCode/etfTrading/'
+thePath = 'C:/Users/xilin/gitHubCode/parallelAnalysis/'
 start = datetime.datetime(2000,1,1)
-end = datetime.datetime(2016,7,10)
+end = datetime.datetime(2016,7,12)
 
 mongo = MongoClient('127.0.0.1', 27017)
 mongoDb = mongo['priceData']
-mongoColl = mongoDb['crspData']
+mongoColl = mongoDb['crspData'] #price data
+mongoInsert = mongoDb['dailyRun'] #write what assets to trade
 
 theTickers = np.sort(np.array(mongoColl.distinct('ticker')))
 theTickers = [s.strip('$') for s in theTickers]
@@ -52,27 +54,28 @@ tickerSlice = numTickers/numThreads
 print(tickerSlice) 
 
 theWindow = 10
-testSize = .9
-postThresh = .5
+testSize = .95
+postThresh = .8
+baseTicker = "^VIX"
 
 #theTickers, start, end, postThresh, theWindow, testSize, thePath
 def seekOne():
-    thePar(theTickers[0:tickerSlice], start, end, postThresh, theWindow, testSize, tickerSlice, "one", thePath)
+    thePar(theTickers[0:tickerSlice], baseTicker, start, end, postThresh, theWindow, testSize, tickerSlice, "one", thePath, mongoInsert)
 one_thread = threading.Thread(target=seekOne)
 one_thread.start()
 
 def seekTwo():
-    thePar(theTickers[tickerSlice:2*tickerSlice], start, end, postThresh, theWindow, testSize, tickerSlice, "two", thePath)
+    thePar(theTickers[tickerSlice:2*tickerSlice], baseTicker, start, end, postThresh, theWindow, testSize, tickerSlice, "two", thePath, mongoInsert)
 two_thread = threading.Thread(target=seekTwo)
 two_thread.start()
 
 def seekThree():
-    thePar(theTickers[2*tickerSlice:3*tickerSlice], start, end, postThresh, theWindow, testSize, tickerSlice, "three", thePath)
+    thePar(theTickers[2*tickerSlice:3*tickerSlice], baseTicker, start, end, postThresh, theWindow, testSize, tickerSlice, "three", thePath, mongoInsert)
 three_thread = threading.Thread(target=seekThree)
 three_thread.start()
 
 def seekFour():
-    thePar(theTickers[3*tickerSlice:len(theTickers)], start, end, postThresh, theWindow, testSize, tickerSlice, "four", thePath)
+    thePar(theTickers[3*tickerSlice:len(theTickers)], baseTicker, start, end, postThresh, theWindow, testSize, tickerSlice, "four", thePath, mongoInsert)
 three_thread = threading.Thread(target=seekFour)
 three_thread.start()
 

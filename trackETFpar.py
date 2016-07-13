@@ -4,6 +4,7 @@ Created on Sun Jul 10 08:55:19 2016
 
 @author: xilin
 """
+import time
 import math
 import pandas as pd
 import datetime, dateutil.parser
@@ -34,7 +35,7 @@ import nltk
 from sklearn import cross_validation
 from sklearn.svm import SVC
 
-def thePar(theTickers, start, end, postThresh, theWindow, testSize, numTickers, fileName, thePath):
+def thePar(theTickers, baseTicker, start, end, postThresh, theWindow, testSize, numTickers, fileName, thePath, mongoInsert):
         
     #variables
     statSig = .05 #obvious
@@ -49,7 +50,6 @@ def thePar(theTickers, start, end, postThresh, theWindow, testSize, numTickers, 
     #testSize = .90
     priceThresh = 5.0
     
-    baseTicker = "^TNX"
     tempBase = web.DataReader(baseTicker,"yahoo",start,end)
     tempBase['retBase'] = np.log(tempBase['Adj Close'].astype(float)) - np.log(tempBase['Adj Close'].astype(float).shift(1))
     #tempBase['retBase'] = np.log(tempBase['Close'].astype(float)) - np.log(tempBase['Open'].astype(float))
@@ -107,6 +107,9 @@ def thePar(theTickers, start, end, postThresh, theWindow, testSize, numTickers, 
                     tDate = list(testY.index.values)
                     startTestDate = str(tDate[0])[:10]
                     endTestDate = str(tDate[len(tDate)-1])[:10]
+                    
+                    tDate = list(tempData.index.values)
+                    simDay = str(tDate[len(tDate)-1])[:10]
     
                     model = RandomForestClassifier(n_estimators=25,random_state=42)
                     #model = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),n_estimators=300,learning_rate=1,algorithm="SAMME")
@@ -128,10 +131,12 @@ def thePar(theTickers, start, end, postThresh, theWindow, testSize, numTickers, 
                         tempStr = pd.DataFrame({'ticker': [theTickers[i]],' Position': ['Long'],' Confidence': [todayPostProbs[0][pos]]})
                         todayData = todayData.append(tempStr)
                         print("GO LONG ON: " + theTickers[i] + " Confidence: " + str(todayPostProbs[0][pos]))
+                        mongoInsert.insert({"theDate": simDay, "ticker": theTickers[i], "position": 1})
                     if(todayPostProbs[0][neg] >= postThresh):
                         tempStr = pd.DataFrame({'ticker': [theTickers[i]],' Position': ['Short'],' Confidence': [todayPostProbs[0][neg]]})
                         todayData = todayData.append(tempStr)
                         print("GO SHORT ON: " + theTickers[i] + " Confidence: " + str(todayPostProbs[0][neg])) 
+                        mongoInsert.insert({"theDate": simDay, "ticker": theTickers[i], "position": -1})
     
                     theLongs = np.where(postProbs[:,pos] >= postThresh)[0] #LONG POSITIONS
                     theShorts = np.where(postProbs[:,neg] >= postThresh)[0] #SHORT POSITIONS
@@ -157,15 +162,13 @@ def thePar(theTickers, start, end, postThresh, theWindow, testSize, numTickers, 
                     finalData = finalData.append(tempStr)
                     #print(theTickers[i] + " Ret: " + str(theRet) + " Roll Ret: " + str(rollRet) + " Short Cnt: " + str(numNeg) + " Long Cnt: " 
                     #+ str(numPos) + " Strt Tr: " + startTrainDate + " Strt Test: " + startTestDate + " sRollCnt: " + str(totalShort) + " lRollCnt: " +  str(totalLong))
-                except Exception:
-                    print(theTickers[i])         
-                pass
-        except Exception:
-            print(theTickers[i])         
-        pass      
+                except:        
+                    pass
+        except:         
+            pass      
     
-    finalData.to_csv(thePath + baseTicker + "_" + fileName + "_finalData.csv",index=False)
-    todayData.to_csv(thePath + baseTicker + "_" + fileName + "_todayData.csv",index=False)
+    finalData.to_csv(thePath + time.strftime("%Y-%m-%d") + "_" + baseTicker + "_" + fileName + "_finalData.csv",index=False)
+    todayData.to_csv(thePath + time.strftime("%Y-%m-%d") + "_" + baseTicker + "_" + fileName + "_todayData.csv",index=False)
     print("Sharpe: " + str(((np.mean(thePerf)/np.std(thePerf))*math.sqrt(252))))
     temp = np.where(np.asarray(thePerf) < 0)
     print("Sortino: " + str(np.mean(thePerf)/np.std(np.asarray(thePerf)[temp])*math.sqrt(252)))
