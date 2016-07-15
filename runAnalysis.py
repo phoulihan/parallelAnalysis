@@ -35,7 +35,7 @@ from sklearn import cross_validation
 from sklearn.svm import SVC
 from sklearn import neighbors, datasets
 
-thePath = 'C:/Users/xilin/gitHubCode/parallelAnalysis/'
+thePath = '/home/ubuntu/code.python/baetis/parallelAnalysis/'
 start = datetime.datetime(2000,1,1)
 end = datetime.datetime(2016,7,12)
 
